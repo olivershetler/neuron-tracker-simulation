@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert -f K:\ke\dev\2024-neuron-tracker-simulations\docker-compose.yaml
+    kompose.version: 1.33.0 (3ce457399)
+  labels:
+    io.kompose.service: simulation-a1-l1
+  name: simulation-a1-l1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: simulation-a1-l1
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert -f K:\ke\dev\2024-neuron-tracker-simulations\docker-compose.yaml
+        kompose.version: 1.33.0 (3ce457399)
+      labels:
+        io.kompose.network/2024-neuron-tracker-simulations-default: "true"
+        io.kompose.service: simulation-a1-l1
+    spec:
+      containers:
+        - args:
+            - bash
+            - -c
+            - pip install --upgrade pip && apt-get update && apt-get install -y build-essential && pip install -e app/ && python /app/source/main.py && exit 0
+          env:
+            - name: CELL_MODELS_DIR
+              value: /volumes/cell_models/
+            - name: LOGGING_DIR
+              value: /logs
+            - name: OUTPUT_DIR
+              value: /output
+          image: gcr.io/neuron-tracker-simulation/mountainsort5-base:latest
+          name: simulation-a1-l1
+          ports:
+            - containerPort: 8000
+              hostPort: 8011
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /app
+              name: simulation-a1-l1-cm0
+            - mountPath: /.config/mearec
+              name: K
+            - mountPath: /volumes/output
+              name: K
+            - mountPath: /logs
+              name: simulation-a1-l1-cm4
+      restartPolicy: Always
+      volumes:
+        - configMap:
+            name: simulation-a1-l1-cm0
+          name: simulation-a1-l1-cm0
+        - name: K
+          persistentVolumeClaim:
+            claimName: K
+        - name: K
+          persistentVolumeClaim:
+            claimName: K
+        - configMap:
+            name: simulation-a1-l1-cm4
+          name: simulation-a1-l1-cm4
