@@ -23,74 +23,111 @@ class Simulator:
         self.n_recordings = self.config["session_sequence_params"]["n_recordings"]
         self.z_offset = self.config["session_sequence_params"]["between_session_z_offset"]
         self.output_dir = Path(self.config["env"]["OUTPUT_DIR"])
-        self.templates_path = self.output_dir / 'templates.h5'
-        if redo_templates and self.templates_path.exists():
-            self.templates_path.unlink()
+        self.tetrode_templates_path = self.output_dir / 'tetrode_templates.h5'
+        self.neuronexus_templates_path = self.output_dir / 'neuronexus_templates.h5'
+        if redo_templates and self.tetrode_templates_path.exists():
+            self.tetrode_templates_path.unlink()
+        if redo_templates and self.neuronexus_templates_path.exists():
+            self.neuronexus_templates_path.unlink()
         if redo_recordings:
-            for file in self.output_dir.glob('recording*.h5'):
+            for file in self.output_dir.glob('*recording*.h5'):
                 file.unlink()
         self.cell_models_dir = Path(self.config["env"]["CELL_MODELS_DIR"])
         self.template_params = self.config["template_params"]
         self.recordings_params = self.config["recordings_params"]
 
     def run_simulation(self):
-        self._handle_templates()
-        self._handle_recordings()
+        print("Running tetrotrode simulation.")
+        logging.info("Running tetrode simulation.")
+        self._handle_templates('tetrode')
+        self._handle_recordings('tetrode')
+        print("Running Neuronexus-32 simulation.")
+        logging.info("Running Neuronexus-32 simulation.")
+        self._handle_templates('Neuronexus-32')
+        self._handle_recordings('Neuronexus-32')
+        print("Simulation complete.")
+        logging.info("Pipeline complete")
         # modify API to return split_report
         logging.info("Pipeline complete")
         return {"message": "Simulation completed"}
 
-    def _handle_templates(self):
-        if not self.templates_path.exists():
-            self._generate_templates()
+    def _handle_templates(self, probe):
+        if probe == 'tetrode':
+            if not self.tetrode_templates_path.exists():
+                self._generate_templates(probe)
+        elif probe == 'Neuronexus-32':
+            if not self.neuronexus_templates_path.exists():
+                self._generate_templates(probe)
         else:
             logging.info("Templates already exist. Will load from file.")
             print("Templates already exist. Will load from file.")
 
-    def _generate_templates(self):
+    def _generate_templates(self, probe):
+        template_params = self.template_params.copy()
+        template_params["probe"] = probe
         tempgen = mr.gen_templates(
             cell_models_folder=self.cell_models_dir,
             params=self.template_params,
-            n_jobs=13
+            n_jobs=-1
             )
-        mr.save_template_generator(tempgen, filename=self.templates_path)
+        if probe == 'tetrode':
+            mr.save_template_generator(tempgen, filename=self.tetrode_templates_path)
+        elif probe == 'Neuronexus-32':
+            mr.save_template_generator(tempgen, filename=self.neuronexus_templates_path)
         logging.info("Generated and saved templates.")
         print("Generated and saved templates.")
 
-    def _handle_recordings(self):
-        n_existing_recordings = len(list(self.output_dir.glob('recording*.h5')))
+    def _handle_recordings(self, probe):
+        n_existing_recordings = len(list(self.output_dir.glob('{probe}_recording*.h5')))
         if n_existing_recordings == self.n_recordings:
             logging.info("Recordings already exist. Skipping generation.")
             print("Recordings already exist. Skipping generation.")
         elif n_existing_recordings == 0:
-            self._generate_recordings()
+            self._generate_recordings(probe)
         else:
             raise ValueError("Some recordings exist, but not all. Please delete all recordings or none.")
 
-    def _generate_recordings(self):
+    def _generate_recordings(self, probe):
+        if probe == 'tetrode':
+            templates_path = self.tetrode_templates_path
+        elif probe == 'Neuronexus-32':
+            templates_path = self.neuronexus_templates_path
         for i in range(self.n_recordings):
             recgen = mr.gen_recordings(
-                templates=self.templates_path,
+                templates=templates_path,
                 params=self.recordings_params,
                 verbose=True,
                 n_jobs=-1,
-                drift_dicts=self._make_session_drift_dicts(i)
+                drift_dicts=self._make_session_drift_dicts(probe, i)
                 )
-            rec_path = self.output_dir / f'recording{i+1}.h5'
+            if probe == 'tetrode':
+                rec_path = self.output_dir / f'tetrode_recording{i+1}.h5'
+            elif probe == 'Neuronexus-32':
+                rec_path = self.output_dir / f'neuronexus_recording{i+1}.h5'
             mr.save_recording_generator(recgen, filename=rec_path)
             logging.info(f"Generated and saved {self.n_recordings} recordings.")
 
-    def _make_session_drift_dicts(self, i):
+    def _make_session_drift_dicts(self, probe, i):
+        inter_session_drift_dict = self._make_intersession_drift_dict(i)
+        if probe == 'tetrode':
+            slow_drift = self.config["slow_rigid_drift_dict"].copy()
+            fast_drift = self.config["fast_rigid_drift_dict"].copy()
+        elif probe == 'Neuronexus-32':
+            slow_drift = self.config["slow_flexible_drift_dict"].copy()
+            fast_drift = self.config["fast_flexible_drift_dict"].copy()
+        return [inter_session_drift_dict, slow_drift, fast_drift]
+
+    def _make_intersession_drift_dict(self, i):
         inter_session_drift_dict = self.config["base_signal_drift_dict"].copy()
-        duration = self.recordings_params["duration"]
+        duration = self.recordings_params["spiketrains"]["duration"]
         drift_times = np.arange(0, duration, 0.1)
         depth = self.z_offset * i
-        drift_vector = np.array([0, 0, depth])
+        # drift vector is a vector of the same shape as drift_times with the depth value repeated
+
+        drift_vector = np.full_like(drift_times, depth)
         inter_session_drift_dict["drift_times"] = drift_times
         inter_session_drift_dict["drift_vector"] = drift_vector
-        intra_session_drift_dict = self.config["slow_rigid_drift_dict"].copy()
-        intra_session_drift_dict["drift_times"] = drift_times
-        return [inter_session_drift_dict, intra_session_drift_dict]
+        return inter_session_drift_dict
 
 def main():
     config_dict = load_config()

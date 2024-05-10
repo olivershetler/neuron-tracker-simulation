@@ -35,9 +35,9 @@ spec:
             - name: CELL_MODELS_DIR
               value: /bucket/mearec/cell_models/A1/L1
             - name: LOGGING_DIR
-              value: /bucket/logs/A1/L1
+              value: /bucket/mearec/logs/A1/L1
             - name: OUTPUT_DIR
-              value: /bucket/output/A1/L1
+              value: /bucket/mearec/recordings/A1/L1
           image: gcr.io/neuron-tracker-simulation/mountainsort5-base:latest
           name: simulation-a1-l1
           ports:
