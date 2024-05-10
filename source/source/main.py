@@ -44,8 +44,8 @@ class Simulator:
         if not self.templates_path.exists():
             self._generate_templates()
         else:
-            logging.info("Templates already exist. Loading from file.")
-            self._load_templates()
+            logging.info("Templates already exist. Will load from file.")
+            print("Templates already exist. Will load from file.")
 
     def _generate_templates(self):
         tempgen = mr.gen_templates(
@@ -55,18 +55,13 @@ class Simulator:
             )
         mr.save_template_generator(tempgen, filename=self.templates_path)
         logging.info("Generated and saved templates.")
-        self.tempgen = tempgen
-
-    def _load_templates(self):
-        tempgen = mr.load_templates(self.templates_path)
-        logging.info(f"Loaded pre-saved templates from {self.templates_path} .")
-        self.tempgen = tempgen
+        print("Generated and saved templates.")
 
     def _handle_recordings(self):
         n_existing_recordings = len(list(self.output_dir.glob('recording*.h5')))
         if n_existing_recordings == self.n_recordings:
             logging.info("Recordings already exist. Skipping generation.")
-            self._load_recordings()
+            print("Recordings already exist. Skipping generation.")
         elif n_existing_recordings == 0:
             self._generate_recordings()
         else:
@@ -81,10 +76,9 @@ class Simulator:
                 n_jobs=-1,
                 drift_dicts=self._make_session_drift_dicts(i)
                 )
-            rec_path = self.output_dir / self.curr_run / f'recording{i+1}.h5'
+            rec_path = self.output_dir / f'recording{i+1}.h5'
             mr.save_recording_generator(recgen, filename=rec_path)
             logging.info(f"Generated and saved {self.n_recordings} recordings.")
-            self.recgen = recgen
 
     def _make_session_drift_dicts(self, i):
         inter_session_drift_dict = self.config["base_signal_drift_dict"].copy()
@@ -94,16 +88,9 @@ class Simulator:
         drift_vector = np.array([0, 0, depth])
         inter_session_drift_dict["drift_times"] = drift_times
         inter_session_drift_dict["drift_vector"] = drift_vector
-
         intra_session_drift_dict = self.config["slow_rigid_drift_dict"].copy()
         intra_session_drift_dict["drift_times"] = drift_times
         return [inter_session_drift_dict, intra_session_drift_dict]
-
-
-    def _load_recordings(self):
-        recgen = mr.load_recordings(self.rec_path)
-        logging.info("Loaded pre-saved recordings.")
-        self.recgen = recgen
 
 def main():
     config_dict = load_config()

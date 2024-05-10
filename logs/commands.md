@@ -72,3 +72,12 @@ kubectl apply -f ./
 kubectl delete pod {POD_NAME}
 (can use this to delete the Pod, since the above "apply" is just a proof-of-concept that we can go right into using the converted Kuberentes YAML files); this will update the Pod with the new config
 
+_____
+
+apply -f simulation-a1-l1-deployment.yaml --force
+
+get pods
+
+(copy the name of the pod)
+
+logs POD_NAME -c simulation-a1-l1

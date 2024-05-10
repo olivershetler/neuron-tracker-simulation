@@ -30,7 +30,7 @@ spec:
         - args:
             - bash
             - -c
-            - echo ">>>>STARTING SIMULATION<<<<<" && pip install --upgrade pip && apt-get update && apt-get install -y build-essential && mkdir app && cd app && git clone https://github.com/olivershetler/neuron-tracker-simulation.git && cd .. && pip install -e app/ && python /app/source/main.py && echo ">>>>FINISHED SIMULATION<<<<<" && exit 0
+            - echo ">>>>STARTING SIMULATION<<<<<" && pip install --upgrade pip && apt-get update && apt-get install -y build-essential && git clone https://github.com/olivershetler/neuron-tracker-simulation.git && pip install -e neuron-tracker-simulation/source && ls && python /neuron-tracker-simulation/source/source/main.py && echo ">>>>FINISHED SIMULATION<<<<<" && exit 0
           env:
             - name: CELL_MODELS_DIR
               value: /bucket/mearec/cell_models/A1/L1
@@ -53,7 +53,7 @@ spec:
         - name: gcs-fuse-csi-ephemeral
           csi:
             driver: gcsfuse.csi.storage.gke.io
-            readOnly: true
+            readOnly: false
             volumeAttributes:
               bucketName: neuron-tracker-simulation
               mountOptions: "implicit-dirs"
