@@ -11,10 +11,9 @@ dependencies = [
     "LFPy",
     "numba",
     "SpikeInterface[full]",
-    "MEArec",
+    "MEArec[templates]",
     "numpy",
     "xarray",
-    "pytest",
 ]
 description = "Simulations for a neuron tracking study."
 authors = [{name = "Oliver Shetler", email = "cos2112@cumc.columbia.edu"}]

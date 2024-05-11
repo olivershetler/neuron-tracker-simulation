@@ -26,11 +26,14 @@ spec:
         io.kompose.network/2024-neuron-tracker-simulations-default: "true"
         io.kompose.service: simulation-a1-l1
     spec:
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
       containers:
         - args:
             - bash
             - -c
-            - echo ">>>>STARTING SIMULATION<<<<<" && pip install --upgrade pip && apt-get update && apt-get install -y build-essential && git clone https://github.com/olivershetler/neuron-tracker-simulation.git && pip install -e neuron-tracker-simulation/source && ls && python /neuron-tracker-simulation/source/source/main.py && echo ">>>>FINISHED SIMULATION<<<<<" && exit 0
+            - sleep 1000000
           env:
             - name: CELL_MODELS_DIR
               value: /bucket/mearec/cell_models/A1/L1
@@ -47,7 +50,7 @@ spec:
           volumeMounts:
             - mountPath: /bucket
               name: gcs-fuse-csi-ephemeral
-      serviceAccountName: neuron-tracker-simulation-service-account
+      serviceAccountName: neuron-tracker-sim-sa
       restartPolicy: Always
       volumes:
         - name: gcs-fuse-csi-ephemeral

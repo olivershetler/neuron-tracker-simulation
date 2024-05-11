@@ -39,8 +39,8 @@ class Simulator:
     def run_simulation(self):
         print("Running tetrotrode simulation.")
         logging.info("Running tetrode simulation.")
-        self._handle_templates('tetrode')
-        self._handle_recordings('tetrode')
+        tempgen = self._handle_templates('tetrode')
+        self._handle_recordings('tetrode', tempgen)
         print("Running Neuronexus-32 simulation.")
         logging.info("Running Neuronexus-32 simulation.")
         self._handle_templates('Neuronexus-32')
@@ -52,23 +52,27 @@ class Simulator:
         return {"message": "Simulation completed"}
 
     def _handle_templates(self, probe):
-        if probe == 'tetrode':
-            if not self.tetrode_templates_path.exists():
-                self._generate_templates(probe)
-        elif probe == 'Neuronexus-32':
-            if not self.neuronexus_templates_path.exists():
-                self._generate_templates(probe)
-        else:
+        if probe == 'tetrode' and not self.tetrode_templates_path.exists():
+            tempgen = self._generate_templates(probe)
+        elif probe == 'Neuronexus-32' and not self.neuronexus_templates_path.exists():
+            tempgen = self._generate_templates(probe)
+        elif probe == 'tetrode' or probe == 'Neuronexus-32':
             logging.info("Templates already exist. Will load from file.")
             print("Templates already exist. Will load from file.")
+            return None
+        else:
+            raise ValueError("Probe must be 'tetrode' or 'Neuronexus-32'.")
+        return tempgen
 
     def _generate_templates(self, probe):
         template_params = self.template_params.copy()
         template_params["probe"] = probe
         tempgen = mr.gen_templates(
             cell_models_folder=self.cell_models_dir,
-            params=self.template_params,
-            n_jobs=-1
+            params=template_params,
+            n_jobs=-1,
+            verbose=True,
+            recompile=True
             )
         if probe == 'tetrode':
             mr.save_template_generator(tempgen, filename=self.tetrode_templates_path)
@@ -76,25 +80,30 @@ class Simulator:
             mr.save_template_generator(tempgen, filename=self.neuronexus_templates_path)
         logging.info("Generated and saved templates.")
         print("Generated and saved templates.")
+        return tempgen
 
-    def _handle_recordings(self, probe):
+    def _handle_recordings(self, probe, tempgen):
         n_existing_recordings = len(list(self.output_dir.glob('{probe}_recording*.h5')))
         if n_existing_recordings == self.n_recordings:
             logging.info("Recordings already exist. Skipping generation.")
             print("Recordings already exist. Skipping generation.")
         elif n_existing_recordings == 0:
-            self._generate_recordings(probe)
+            self._generate_recordings(probe, tempgen)
         else:
             raise ValueError("Some recordings exist, but not all. Please delete all recordings or none.")
 
-    def _generate_recordings(self, probe):
+    def _generate_recordings(self, probe, tempgen):
         if probe == 'tetrode':
             templates_path = self.tetrode_templates_path
         elif probe == 'Neuronexus-32':
             templates_path = self.neuronexus_templates_path
+        else:
+            raise ValueError(f"Unknown probe type: {probe}")
+        if tempgen is None:
+            tempgen = mr.load_templates(templates_path)
         for i in range(self.n_recordings):
             recgen = mr.gen_recordings(
-                templates=templates_path,
+                tempgen=tempgen,
                 params=self.recordings_params,
                 verbose=True,
                 n_jobs=-1,
@@ -125,15 +134,15 @@ class Simulator:
         # drift vector is a vector of the same shape as drift_times with the depth value repeated
 
         drift_vector = np.full_like(drift_times, depth)
-        inter_session_drift_dict["drift_times"] = drift_times
-        inter_session_drift_dict["drift_vector"] = drift_vector
+        inter_session_drift_dict["external_drift_times"] = drift_times
+        inter_session_drift_dict["external_drift_vector_um"] = drift_vector
         return inter_session_drift_dict
 
 def main():
     config_dict = load_config()
     setup_logging(config_dict)
     logging.info("===== Starting simulation. =====")
-    simulator = Simulator(config=config_dict)
+    simulator = Simulator(config=config_dict, redo_templates=True, redo_recordings=True)
     simulator.run_simulation()
     logging.info("===== Simulation finished. =====")
 

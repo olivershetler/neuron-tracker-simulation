@@ -54,10 +54,19 @@ GET CRIDENTIALS
 gcloud container clusters get-credentials simulation-cluster --location=us-west1-a
 
 CREATE SERVICE ACCOUNT (user substitute for automation):
-kubectl create serviceaccount neuron-tracker-simulation-service-account
+kubectl create serviceaccount neuron-tracker-sim-sa
 
-GRANT READ WRITE ROLE TO SERVICE ACCOUNT:
-gcloud storage buckets add-iam-policy-binding gs://neuron-tracker-simulation --member "principal://iam.googleapis.com/projects/740127841280/locations/global/workloadIdentityPools/neuron-tracker-simulation.svc.id.goog/subject/ns/default/sa/neuron-tracker-simulation-service-account" --role "roles/storage.objectUser"
+CREATE IAM POLICY BINDING IN GOOGLE CLOUD (GRANT READ WRITE PERMISSIONS TO THE SERVICE ACCOUNT):
+gcloud iam service-accounts add-iam-policy-binding neuron-tracker-sim-sa@neuron-tracker-simulation.iam.gserviceaccount.com --member="serviceAccount:neuron-tracker-simulation.svc.id.goog[default/neuron-tracker-sim-sa]" --role="roles/iam.workloadIdentityUser"
+
+ANNOTATE THE SERVICE ACCOUNT:
+kubectl annotate serviceaccount neuron-tracker-sim-sa --namespace default iam.gke.io/gcp-service-account=neuron-tracker-sim-sa@neuron-tracker-simulation.iam.gserviceaccount.com
+
+gcloud container clusters describe simulation-cluster --zone us-west1-a --format="value(workloadIdentityConfig.workloadPool)"
+
+CREATE WORKLOAD IDENTITY POOL:
+gcloud iam service-accounts create neuron-tracker-sim-sa --display-name "GCS CSI Service Account"
+
 
 
 FIRST:
@@ -80,4 +89,8 @@ get pods
 
 (copy the name of the pod)
 
-logs POD_NAME -c simulation-a1-l1
+logs -f POD_NAME -c simulation-a1-l1
+
+
+gcloud iam service-accounts get-iam-policy neuron-tracker-sim-sa@neuron-tracker-simulation.iam.gserviceaccount.com
+
