@@ -1,0 +1,2 @@
+n_recordings: 5 # number of recordings to generate
+between_session_z_offset: 9 # offset in z-axis for neuron locations for each recording

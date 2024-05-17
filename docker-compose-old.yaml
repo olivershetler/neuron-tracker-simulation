@@ -1,0 +1,32 @@
+version: '3.8'
+services:
+  simulation-A1-L1:
+    image: spikeinterface/mountainsort5-base:latest
+    volumes:
+      - ./app:/app
+      - K:/ke/sta/data/mearec/cell_models/A1/L1:/cell_models
+      - K:/ke/sta/data/mearec/config:/.config/mearec
+      - K:/ke/sta/data/mearec/recordings/A1/L1:/output
+      - ./logs:/logs
+    environment:
+      - LOGGING_DIR=/logs/
+      - CELL_MODELS_DIR=/cell_models/
+      - OUTPUT_DIR=/output/
+    command: bash -c "pip install --upgrade pip && apt-get update && apt-get install -y build-essential && pip install -e app/ && python /app/source/main.py && exit 0"
+    ports:
+      - "8011:8000"
+  simulation-A1-L23:
+    image: spikeinterface/mountainsort5-base:latest
+    volumes:
+      - ./app:/app
+      - K:/ke/sta/data/mearec/cell_models/A1/L23:/cell_models
+      - K:/ke/sta/data/mearec/config:/.config/mearec
+      - K:/ke/sta/data/mearec/recordings/A1/L1:/output
+      - ./logs:/logs
+    environment:
+      - LOGGING_DIR=/logs/
+      - CELL_MODELS_DIR=/cell_models/
+      - OUTPUT_DIR=/output/
+    command: bash -c "pip install --upgrade pip && apt-get update && apt-get install -y build-essential && pip install -e app/ && python /app/source/main.py && exit 0"
+    ports:
+      - "8012:8000"

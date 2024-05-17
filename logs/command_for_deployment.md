@@ -1,0 +1,1 @@
+echo ">>>>STARTING SIMULATION<<<<<" && pip install --upgrade pip && apt-get update && apt-get install -y build-essential && git clone https://github.com/olivershetler/neuron-tracker-simulation.git && pip install -e neuron-tracker-simulation/source && python /neuron-tracker-simulation/source/source/main.py && echo ">>>>FINISHED SIMULATION<<<<<"
