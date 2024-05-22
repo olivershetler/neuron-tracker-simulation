@@ -22,9 +22,9 @@ def setup_logging(config):
 class Simulator:
     def __init__(self, config):
         self.config = config
-        self.n_recordings = self.config["session_sequence_params"]["n_recordings"]
+        self.n_recordings = self.config["simulation_params"]["n_recordings"]
 
-        self.z_offset = self.config["session_sequence_params"]["between_session_z_offset"]
+        self.z_offset = self.config["simulation_params"]["between_session_z_offset"]
 
         self.output_dir = Path(self.config["env"]["OUTPUT_DIR"])
 
@@ -44,6 +44,7 @@ class Simulator:
             for file in self.output_dir.glob('*recording*.h5'):
                 file.unlink()
         self.cell_models_dir = Path(self.config["env"]["CELL_MODELS_DIR"])
+        self.n_cell_models = len([f for f in self.cell_models_dir.iterdir() if f.is_dir() and f.name != 'mods'])
         self.templates_params = self.config["templates_params"]
         self.recordings_params = self.config["recordings_params"]
 
@@ -78,6 +79,7 @@ class Simulator:
     def _generate_templates(self, probe):
         templates_params = self.templates_params.copy()
         templates_params["probe"] = probe
+        templates_params["n"] = self.simulation_params["n_cells"] // self.n_cell_models
         tempgen = mr.gen_templates(
             cell_models_folder=self.cell_models_dir,
             params=templates_params,
@@ -97,20 +99,19 @@ class Simulator:
             mr.save_template_generator(tempgen, filename=self.neuronexus_templates_path)
         logging.info("Generated and saved templates.")
         print("Generated and saved templates.")
-        self._plot_locations(tempgen)
+        self._plot_locations(tempgen, probe_name=probe)
         print("Plotted locations.")
         return tempgen
 
-    def _plot_locations(self, tempgen):
+    def _plot_locations(self, tempgen, probe_name):
         # plot locations
         prb = mu.return_mea(info=tempgen.info["electrodes"])
-
         ax = mu.plot_probe(prb)
         for loc in tempgen.locations[::5]:
             ax.plot([loc[0, 1], loc[-1, 1]], [loc[0, 2], loc[-1, 2]], alpha=0.7)
-        ax.set_title(f"Locations of templates for {prb}")
+        ax.set_title(f"Locations of templates for {probe_name}")
         # save the ax plot
-        plt.savefig(self.output_dir / f"{prb}_locations.png")
+        plt.savefig(self.output_dir / f"{probe_name}_locations.png")
 
 
 
@@ -128,8 +129,8 @@ class Simulator:
         recordings_params = self.recordings_params.copy()
         if probe == 'tetrode':
             templates_path = self.tetrode_templates_path
-            n_exc = 80
-            n_inh = 20
+            n_exc = 40
+            n_inh = 10
         elif probe == 'Neuronexus-32':
             templates_path = self.neuronexus_templates_path
             n_exc = 320
@@ -162,15 +163,15 @@ class Simulator:
             mr.save_recording_generator(recgen, filename=rec_path)
             logging.info(f"Generated and saved {self.n_recordings} recordings.")
             print(f"Generated and saved {self.n_recordings} recordings.")
-            self._plot_cell_drifts(recgen)
+            self._plot_cell_drifts(recgen, probe_name=probe, i=i)
             print(f"Plotted cell drifts for recording {i+1}.")
 
-    def _plot_cell_drifts(self, recgen):
+    def _plot_cell_drifts(self, recgen, probe_name, i):
         ax = mr.plot_cell_drifts(recgen)
         probe = recgen.info["probe"]
-        ax.set_title(f"Cell drifts for {probe}")
+        ax.set_title(f"Cell drifts for {probe_name} recording {i+1}.")
         # save the ax plot
-        plt.savefig(self.output_dir / f"{probe}_cell_drifts.png")
+        plt.savefig(self.output_dir / f"{probe_name}_recording_{i}_cell_drifts.png")
 
     def _make_session_drift_dicts(self, probe, i):
         inter_session_drift_dict = self._make_intersession_drift_dict(i)
@@ -189,10 +190,10 @@ class Simulator:
         depth = self.z_offset * i
         # drift vector is a vector of the same shape as drift_times with the depth value repeated
         drift_vector = np.full_like(drift_times, depth)
-        drift_factors = np.full_like(drift_times, 1.0)
+        #drift_factors = np.full_like(drift_times, 1.0)
         inter_session_drift_dict["external_drift_times"] = drift_times
         inter_session_drift_dict["external_drift_vector_um"] = drift_vector
-        inter_session_drift_dict["external_drift_factors"] = drift_factors
+        inter_session_drift_dict["external_drift_factors"] = None
         return inter_session_drift_dict
 
 

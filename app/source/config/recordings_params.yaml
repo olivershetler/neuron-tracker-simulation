@@ -31,19 +31,19 @@ cell_types:
 
 seeds:
   spiketrains: 02 # random seed for spiketrain generation
-  templates: 26 # random seed for template selection
+  templates: 50 # random seed for template selection
   convolution: 19 # random seed for jitter selection in convolution
   noise: 92 # random seed for noise
 
 templates:
   # recording generation parameters
-  min_dist: 25 # minimum distance between neurons
+  min_dist: 10 # minimum distance between neurons
   min_amp: 0 # minimum spike amplitude in uV
   max_amp: 300 # maximum spike amplitude in uV
   n_overlap_pairs: null # number of spatially overlapping templates
-  xlim: null # limits for neuron depths (x-coord) in um [min, max]
-  ylim: null # limits for neuron depths (y-coord) in um [min, max]
-  zlim: null # limits for neuron depths (z-coord) in um [min, max]
+  xlim: [-50,50] # limits for neuron depths (x-coord) in um [min, max]
+  ylim: [-50,50] # limits for neuron depths (y-coord) in um [min, max]
+  zlim: [-60,-50] # limits for neuron depths (z-coord) in um [min, max]
   overlap_threshold: 0.9 # threshold to consider two templates spatially overlapping
   # (e.g 0.9 -> 90% of template B on largest electrode of template A)
   n_jitters: 10 # number of temporal jittered copies for each eap
