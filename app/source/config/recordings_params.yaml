@@ -78,7 +78,7 @@ recordings:
   n_bursting: null  # number of bursting units
 
   noise_level: 10 # noise standard deviation in uV
-  noise_mode: far-neurons # [uncorrelated | distance-correlated | far-neurons]
+  noise_mode: uncorrelated # [uncorrelated | distance-correlated | far-neurons]
   noise_color: True # if True noise is colored resembling experimental noise
   noise_half_distance: 30 # (distance-correlated noise) distance between electrodes in um for which correlation is 0.5
   far_neurons_n: 300 # number of far noisy neurons to be simulated

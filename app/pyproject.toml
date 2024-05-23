@@ -11,7 +11,7 @@ dependencies = [
     "LFPy",
     "numba",
     "SpikeInterface[full]",
-    #"MEArec[templates]",
+    "MEArec[templates]",
     "numpy",
     "xarray",
     "h5py",

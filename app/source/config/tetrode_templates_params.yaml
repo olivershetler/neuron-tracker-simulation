@@ -1,7 +1,7 @@
 # Default parameters for template generation
 # intracellular simulation settings
-sim_time: 1.5 # intracellular simulation time in s
-target_spikes: [3, 50]  # min-max number of spikes in sim_time
+sim_time: 1 # intracellular simulation time in s
+target_spikes: [1, 50]  # min-max number of spikes in sim_time
 cut_out: [2, 5]  # pre-post peak cut_out in ms
 dt: 0.03125  # time step (2**-5) in ms
 delay: 10  # stimulation delay in ms
@@ -9,28 +9,28 @@ weights: [0.25, 1.75]  # weights to multiply stimulus amplitude if number of spi
 # target spikes
 
 # extracellular simulation settings
-rot: 3drot # random rotation to apply to cell models (norot, physrot, 3drot)
-probe: null # extracellular probe (if None probes are listed)
+rot: physrot # random rotation to apply to cell models (norot, physrot, 3drot)
+probe: tetrode # extracellular probe (if None probes are listed)
 ncontacts: 10 # number of contacts per recording site
 overhang: 30 # extension in um beyond MEA probe boundaries for neuron locations (if lim is null)
 offset: 0 # plane offset (um) for MEA
-xlim: [-50,50] # limits ( low high ) for neuron locations in the x-axis (depth)
-ylim: [-50,50] # limits ( low high ) for neuron locations in the y-axis
-zlim: [-60,-60] # limits ( low high ) for neuron locations in the z-axis
+xlim: [-20, 20] # limits ( low high ) for neuron locations in the x-axis (depth)
+ylim: [-20, 20] # limits ( low high ) for neuron locations in the y-axis
+zlim: [-20, -10] # limits ( low high ) for neuron locations in the z-axis
 x_distr: 'uniform' # distribution of x locsations ('uniform' | 'beta')
 beta_distr_params: [1.5, 5] # parameters for beta distribution of x locations (depth)
-min_amp: 0 # minimum amplitude for detection
+min_amp: 10 # minimum amplitude for detection
 check_eap_shape: True # if True, EAPs with negative peaks smaller than positive peaks are discarded
-n: 10 # number of EAPs per cell model (number of templates = n * the number of cell models)
-seed: null # random seed for positions and rotations
+n: 2 # number of EAPs per cell model (number of templates = n * the number of cell models)
+seed: 25 # random seed for positions and rotations
 
 drifting: True # if True, drifting templates are simulated
-max_drift: 54 # max distance from the initial and final cell position
-min_drift: 50  # min distance from the initial and final cell position
-drift_steps: 100 # number of drift steps
+max_drift: 10 # max distance from the initial and final cell position
+min_drift: 10  # min distance from the initial and final cell position
+drift_steps: 10 # number of drift steps
 drift_xlim: [0, 0] # limits ( low high ) for neuron drift locations in the x-axis (depth)
 drift_ylim: [0, 0] # limits ( low high ) for neuron drift locations in the y-axis (depth)
-drift_zlim: [50, 50] # limits ( low high ) for neuron drift locations in the z-axis (depth)
+drift_zlim: [-10, -10] # limits ( low high ) for neuron drift locations in the z-axis (depth)
 check_for_drift_amp: True # If True, the drifted template final amplitude must be greater than min_amp
 drift_within_bounds: True # If True, the drifted template final position must be within xlim, ylim, zlim bounds
 

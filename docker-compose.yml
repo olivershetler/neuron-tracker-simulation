@@ -15,6 +15,6 @@ services:
         - OUTPUT_DIR=/output/
         - REDO_TEMPLATES=1
         - REDO_RECORDINGS=1
-        command: bash -c "pip install --upgrade pip && apt-get update && apt-get install -y build-essential && pip install -e MEArec/ && pip install -e app/ && python /app/source/main.py && exit 0"
+        command: bash -c "pip install --upgrade pip && apt-get update && apt-get install -y build-essential && pip install MEArec/ && pip install -e app/ && python /app/source/main.py && exit 0"
         ports:
         - "8011:8000"

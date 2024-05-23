@@ -45,23 +45,19 @@ class Simulator:
                 file.unlink()
         self.cell_models_dir = Path(self.config["env"]["CELL_MODELS_DIR"])
         self.n_cell_models = len([f for f in self.cell_models_dir.iterdir() if f.is_dir() and f.name != 'mods'])
-        self.templates_params = self.config["templates_params"]
+        self.tetrode_templates_params = self.config["tetrode_templates_params"]
+        self.neuronexus_templates_params = self.config["neuronexus_templates_params"]
         self.recordings_params = self.config["recordings_params"]
 
-    def run_simulation(self):
-        print("Running tetrotrode simulation.")
-        logging.info("Running tetrode simulation.")
-        tempgen = self._handle_templates('tetrode')
-        self._handle_recordings('tetrode', tempgen)
-        print("Running Neuronexus-32 simulation.")
-        logging.info("Running Neuronexus-32 simulation.")
-        self._handle_templates('Neuronexus-32')
-        self._handle_recordings('Neuronexus-32')
-        print("Simulation complete.")
-        logging.info("Pipeline complete")
-        # modify API to return split_report
-        logging.info("Pipeline complete")
-        return {"message": "Simulation completed"}
+    def run_simulation(self, probe):
+        if probe not in ['tetrode', 'Neuronexus-32']:
+            raise ValueError("Probe must be 'tetrode' or 'Neuronexus-32'.")
+        print(f"Running {probe} simulation.")
+        logging.info(f"Running {probe} simulation.")
+        tempgen = self._handle_templates(probe)
+        self._handle_recordings(probe, tempgen)
+        print(f"{probe} simulation complete.")
+        logging.info(f"{probe} simulation complete.")
 
     def _handle_templates(self, probe):
         if probe == 'tetrode' and not self.tetrode_templates_path.exists():
@@ -77,9 +73,11 @@ class Simulator:
         return tempgen
 
     def _generate_templates(self, probe):
-        templates_params = self.templates_params.copy()
-        templates_params["probe"] = probe
-        templates_params["n"] = self.simulation_params["n_cells"] // self.n_cell_models
+        if probe == 'tetrode':
+            templates_params = self.tetrode_templates_params.copy()
+        elif probe == 'Neuronexus-32':
+            templates_params = self.neuronexus_templates_params.copy()
+        #templates_params["n"] = self.simulation_params["n_cells"] // self.n_cell_models
         tempgen = mr.gen_templates(
             cell_models_folder=self.cell_models_dir,
             params=templates_params,
@@ -114,7 +112,6 @@ class Simulator:
         plt.savefig(self.output_dir / f"{probe_name}_locations.png")
 
 
-
     def _handle_recordings(self, probe, tempgen):
         n_existing_recordings = len(list(self.output_dir.glob('{probe}_recording*.h5')))
         if n_existing_recordings == self.n_recordings:
@@ -129,12 +126,12 @@ class Simulator:
         recordings_params = self.recordings_params.copy()
         if probe == 'tetrode':
             templates_path = self.tetrode_templates_path
-            n_exc = 40
-            n_inh = 10
+            n_exc = 8
+            n_inh = 2
         elif probe == 'Neuronexus-32':
             templates_path = self.neuronexus_templates_path
-            n_exc = 320
-            n_inh = 80
+            n_exc = 160
+            n_inh = 40
         else:
             raise ValueError(f"Unknown probe type: {probe}")
         recordings_params["spiketrains"]["n_exc"] = n_exc
@@ -154,7 +151,7 @@ class Simulator:
                     params=recordings_params,
                     verbose=True,
                     n_jobs=-1,
-                    drift_dicts=self._make_session_drift_dicts(probe, i)
+                    #drift_dicts=self._make_session_drift_dicts(probe, i)
                     )
             if probe == 'tetrode':
                 rec_path = self.output_dir / f'tetrode_recording{i+1}.h5'
@@ -202,7 +199,8 @@ def main():
     setup_logging(config_dict)
     logging.info("===== Starting simulation. =====")
     simulator = Simulator(config=config_dict)
-    simulator.run_simulation()
+    for probe in ['Neuronexus-32', 'tetrode']:
+        simulator.run_simulation(probe)
     logging.info("===== Simulation finished. =====")
 
 if __name__ == "__main__":
