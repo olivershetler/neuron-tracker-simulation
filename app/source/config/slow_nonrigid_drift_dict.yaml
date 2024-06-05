@@ -9,8 +9,8 @@ slow_drift_velocity: 5
 slow_drift_amplitude: null
 slow_drift_waveform: sine
 fast_drift_period: 10
-fast_drift_max_jump: 20
-fast_drift_min_jump: 5
+fast_drift_max_jump: 5
+fast_drift_min_jump: 1
 t_start_drift: null
 t_end_drift: null
 external_drift_vector_um: null

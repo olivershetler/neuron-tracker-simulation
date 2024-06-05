@@ -16,6 +16,8 @@ dependencies = [
     "xarray",
     "h5py",
     "quantities",
+    "google-cloud-storage",
+    "fsspec",
 ]
 description = "Simulations for a neuron tracking study."
 authors = [{name = "Oliver Shetler", email = "cos2112@cumc.columbia.edu"}]

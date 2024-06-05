@@ -18,7 +18,7 @@ overhang: 30 # extension in um beyond MEA boundaries for neuron locations (if li
 offset: 0 # plane offset (um) for MEA
 xlim: [10,80] # limits ( low high ) for neuron locations in the x-axis (depth)
 ylim: null # limits ( low high ) for neuron locations in the y-axis
-zlim: [-50, -50] # limits ( low high ) for neuron locations in the z-axis
+zlim: [-100, -50] # limits ( low high ) for neuron locations in the z-axis
 x_distr: 'uniform' # distribution of x locations ('uniform' | 'beta')
 beta_distr_params: [1.5, 5] # parameters for beta distribution of x locations (depth)
 min_amp: 30 # minimum amplitude for detection
@@ -27,12 +27,12 @@ n: 50 # number of EAPs per cell model
 seed: 30 # random seed for positions and rotations
 
 drifting: True # if True, drifting templates are simulated
-max_drift: 100 # max distance from the initial and final cell position
-min_drift: 100  # min distance from the initial and final cell position
+max_drift: 150 # max distance from the initial and final cell position
+min_drift: 150  # min distance from the initial and final cell position
 drift_steps: 51 # number of drift steps
 drift_xlim: [0, 0] # limits ( low high ) for neuron drift locations in the x-axis (depth)
 drift_ylim: [0, 0] # limits ( low high ) for neuron drift locations in the y-axis (depth)
-drift_zlim: [100, 100] # limits ( low high ) for neuron drift locations in the z-axis (depth)
+drift_zlim: [150, 150] # limits ( low high ) for neuron drift locations in the z-axis (depth)
 check_for_drift_amp: False # If True, the drifted template final amplitude must be greater than min_amp
 drift_within_bounds: False # If True, the drifted template final position must be within xlim, ylim, zlim bounds
 

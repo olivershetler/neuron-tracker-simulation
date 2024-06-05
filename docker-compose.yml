@@ -8,13 +8,15 @@ services:
         - ./MEArec:/MEArec
         - K:/ke/sta/data/mearec/cell_models/A1/L1:/cell_models
         - K:/ke/sta/data/mearec/recordings/A1/L1:/output
+        - K:/ke/sta/data/mearec/recordings/A1/L1:/existing_recordings
         - ./logs:/logs
         environment:
         - LOGGING_DIR=/logs/
         - CELL_MODELS_DIR=/cell_models/
         - OUTPUT_DIR=/output/
-        - REDO_TEMPLATES=1
+        - REDO_TEMPLATES=0
         - REDO_RECORDINGS=1
+        - CLOUD_MODE=0
         command: bash -c "pip install --upgrade pip && apt-get update && apt-get install -y build-essential && pip install MEArec/ && pip install -e app/ && python /app/source/main.py && exit 0"
         ports:
         - "8011:8000"
