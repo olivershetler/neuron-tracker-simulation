@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gcs-pvc
+spec:
+  storageClassName: "gcsfuse-storage-class"
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 20Gi

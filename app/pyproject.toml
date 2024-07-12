@@ -16,7 +16,9 @@ dependencies = [
     "xarray",
     "h5py",
     "quantities",
+    "gcsfs",
     "google-cloud-storage",
+    "google-auth",
     "fsspec",
 ]
 description = "Simulations for a neuron tracking study."

@@ -5,7 +5,14 @@ import MEArec as mr
 import MEAutility as mu
 import numpy as np
 import matplotlib.pyplot as plt
+
+from google.cloud import storage
+from google.oauth2 import service_account
+import fsspec
+from fsspec.core import url_to_fs
+from fsspec.implementations.dirfs import DirFileSystem
 import os
+import json
 
 def setup_logging(config):
     logging_dir = Path(config["env"]["LOGGING_DIR"])
@@ -20,45 +27,91 @@ def setup_logging(config):
         filename=log_path,
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s"
-        )
+    )
+
+def rm_tree(pth: Path):
+    for child in pth.iterdir():
+        if child.is_file():
+            child.unlink()
+        else:
+            rm_tree(child)
+    pth.rmdir()
 
 class Simulator:
     def __init__(self, config):
         self.config = config
-        self.n_recordings = self.config["simulation_params"]["n_recordings"]
+        self.credentials_path = self.config["env"]["GOOGLE_APPLICATION_CREDENTIALS"]
+        assert Path(self.credentials_path).exists(), f"Credentials path {self.credentials_path} does not exist."
+        self.client = storage.Client.from_service_account_json(self.credentials_path)
+        self.bucket_name = os.getenv("BUCKET_NAME")
+        #mCheck if the bucket exists
+        self.bucket = self.client.bucket(self.bucket_name)
+        assert self.bucket.exists(), f"Bucket {self.bucket_name} does not exist."
+        self.gfs = fsspec.filesystem('gcs', project=self.client.project)
+
+        assert self.bucket_name, "BUCKET_NAME environment variable is not set."
 
         self.output_dir = Path(self.config["env"]["OUTPUT_DIR"])
+        print(f"Output directory: {self.output_dir}.")
 
         self.tetrode_templates_path = self.output_dir / 'tetrode_templates.h5'
-
         self.neuronexus_templates_path = self.output_dir / 'neuronexus_templates.h5'
 
         self.redo_templates = bool(int(self.config["env"]["REDO_TEMPLATES"]))
-
         self.redo_recordings = bool(int(self.config["env"]["REDO_RECORDINGS"]))
 
-        if self.redo_templates and self.tetrode_templates_path.exists():
-            self.tetrode_templates_path.unlink()
-        if self.redo_templates and self.neuronexus_templates_path.exists():
-            self.neuronexus_templates_path.unlink()
-            for file in self.output_dir.glob('*_locations.png'):
-                file.unlink()
+        if self.redo_templates and self.gfs.exists(self._path_to_gcs(self.tetrode_templates_path)):
+            self.gfs.rm(self._path_to_gcs(self.tetrode_templates_path))
+        if self.redo_templates and self.gfs.exists(self._path_to_gcs(self.neuronexus_templates_path)):
+            self.gfs.rm(self._path_to_gcs(self.neuronexus_templates_path))
+            for file in self.gfs.glob(self._path_to_gcs(self.output_dir / "*_locations.png")):
+                self.gfs.rm(file)
         if self.redo_recordings:
-            for file in self.output_dir.glob('*recording*.h5'):
-                file.unlink()
-            for file in self.output_dir.glob('*_cell_drifts.png'):
-                file.unlink()
+            for file in self.gfs.glob(self._path_to_gcs(self.output_dir / "*_recording*.h5")):
+                self.gfs.rm(file)
+            for file in self.gfs.glob(self._path_to_gcs(self.output_dir / "*_cell_drifts.png")):
+                self.gfs.rm(file)
+        # Check if the output directory exists
+        if not self.gfs.exists(self._path_to_gcs(self.output_dir)):
+            print(f"GCS output directory {self._path_to_gcs(self.output_dir)} does not exist. Creating it.")
+            self.gfs.mkdir(self._path_to_gcs(self.output_dir))
+        else:
+            print(f"GCS output directory {self._path_to_gcs(self.output_dir)} exists.")
+        # copy output directory to local, overwrite if it exists
+        if self.output_dir.exists():
+            rm_tree(self.output_dir)
+        self.gfs.get(self._path_to_gcs(self.output_dir), str(self.output_dir), recursive=True)
+        print(f"Copied output directory to {self.output_dir}. Found the following files:")
+        outfilelist = list(self.output_dir.glob("*"))
+        if len(outfilelist) == 0:
+            print("No files found in output directory.")
+        else:
+            for file in outfilelist:
+                if file.is_file():
+                    print(file)
+                elif file.is_dir():
+                    for f in file.glob("*"):
+                        print(f)
+
+
+        self.n_recordings = int(self.config["simulation_params"]["n_recordings"])
         self.cell_models_dir = Path(self.config["env"]["CELL_MODELS_DIR"])
-        self.n_cell_models = len([f for f in self.cell_models_dir.iterdir() if f.is_dir() and f.name != 'mods'])
-        print(f"Found {self.n_cell_models} cell models.")
+        if not self.gfs.exists(self._path_to_gcs(self.cell_models_dir)):
+            raise ValueError(f"Cell models directory {self.cell_models_dir} does not exist in the bucket.")
+        self.n_cell_models = len(self.gfs.ls(self._path_to_gcs(self.cell_models_dir)))
+        assert self.n_cell_models > 0, f"No cell models found in {self._path_to_gcs(self.cell_models_dir)}."
+        # copy cell models to local
+        if self.cell_models_dir.exists():
+            print(f"Cell models directory {self.cell_models_dir} exists. Deleting it and re-downloading.")
+            rm_tree(self.cell_models_dir)
+        #self.cell_models_dir.mkdir(parents=True, exist_ok=False)
+        self.gfs.get(self._path_to_gcs(self.cell_models_dir), str(self.cell_models_dir), recursive=True)
+        print(f"Copied cell models to {self.cell_models_dir}. Found the following files:")
+        for file in self.cell_models_dir.glob("*"):
+            print(file)
 
-        # Adjust this value if you want to reserve some CPUs for other processes
-        all_cpus = os.cpu_count()
-        CPU_USAGE_FACTOR = 0
-
-        self.available_cpus = max(1, int(all_cpus * CPU_USAGE_FACTOR))
-        print(f"Using {self.available_cpus} CPUs for simulation.")
-        self.region_num = int(self.config["env"]["REGION_NUM"])
+    def _path_to_gcs(self, path):
+        return f"gcs://{self.bucket_name}/{str(path)}"
 
     def run_simulation(self, probe):
         if probe not in ['tetrode', 'Neuronexus-32']:
@@ -94,7 +147,7 @@ class Simulator:
             templates_tmp_folder=self.output_dir / f"{probe}_templates_tmp",
             delete_tmp=False,
             parallel=True,
-            n_jobs=8,#self.available_cpus,
+            n_jobs=-1,
             verbose=True,
             recompile=False
         )
@@ -102,9 +155,13 @@ class Simulator:
         if probe == 'tetrode':
             mr.save_template_generator(tempgen, filename=self.tetrode_templates_path)
             print("Saved templates locally.")
+            self.gfs.put(self.tetrode_templates_path, self._path_to_gcs(self.output_dir), recursive=False)
+            print("Saved templates to GCS.")
         elif probe == 'Neuronexus-32':
             mr.save_template_generator(tempgen, filename=self.neuronexus_templates_path)
             print("Saved templates locally.")
+            self.gfs.put(self.neuronexus_templates_path, self._path_to_gcs(self.output_dir), recursive=False)
+            print("Saved templates to GCS.")
         logging.info("Generated and saved templates.")
         print("Generated and saved templates.")
         self._plot_locations(tempgen, probe_name=probe)
@@ -119,6 +176,8 @@ class Simulator:
         ax.set_title(f"Locations of templates for {probe_name}")
         fpath = self.output_dir / f"{probe_name}_locations.png"
         plt.savefig(fpath)
+        print(f"Saved locations plot for {probe_name}.")
+        self.bucket.blob(str(fpath)).upload_from_filename(str(fpath))
         print(f"Saved locations plot for {probe_name} to GCS.")
 
     def _handle_recordings(self, probe, tempgen):
@@ -141,15 +200,13 @@ class Simulator:
         else:
             raise ValueError(f"Unknown probe type: {probe}")
         cur_depth = self._init_cur_depth(probe)
-        primes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29] # handles up to 10 recordings
         for i in range(self.n_recordings):
-            np.random.seed(primes[i]**self.region_num) # each seed is unique by the fundamental theorem of arithmetic
             if tempgen is None:
                 recgen = mr.gen_recordings(
                     templates=templates_path,
                     params=recordings_params,
                     verbose=True,
-                    n_jobs=self.available_cpus,
+                    n_jobs=-1,
                     drift_dicts=self._make_session_drift_dicts(probe, cur_depth=cur_depth)
                 )
             else:
@@ -157,7 +214,7 @@ class Simulator:
                     tempgen=tempgen,
                     params=recordings_params,
                     verbose=True,
-                    n_jobs=self.available_cpus,
+                    n_jobs=-1,
                     drift_dicts=self._make_session_drift_dicts(probe, cur_depth=cur_depth)
                 )
             if probe == 'tetrode':
@@ -166,14 +223,16 @@ class Simulator:
                 rec_path = self.output_dir / f'neuronexus_recording_{i+1}.h5'
             mr.save_recording_generator(recgen, filename=rec_path)
             print(f"Saved recording {i+1} to {rec_path}.")
+            self.gfs.put(rec_path, self._path_to_gcs(self.output_dir), recursive=False)
+            print(f"Saved recording {i+1} to GCS.")
+            assert self.gfs.exists(self._path_to_gcs(rec_path)), f"Recording {i+1} does not exist in GCS."
             self._plot_cell_drifts(recgen, probe_name=probe, i=i)
             cur_depth = self._update_intersession_depth(cur_depth, probe)
 
     def _update_intersession_depth(self, cur_depth, probe):
         if probe == 'Neuronexus-32':
-            range = self.config["neuronexus_templates_params"]["drift_zlim"][0]
-            lower_bound = -range//2
-            upper_bound = range//2
+            lower_bound = self.config["neuronexus_templates_params"]["zlim"][1] + 15
+            upper_bound = self.config["neuronexus_templates_params"]["zlim"][0] + self.config["neuronexus_templates_params"]["drift_zlim"][0] - 15
             jump = np.random.normal(0, 10)
             new_depth = cur_depth + jump
             if new_depth > upper_bound:
@@ -186,7 +245,9 @@ class Simulator:
 
     def _init_cur_depth(self, probe):
         if probe == 'Neuronexus-32':
-            return 0
+            lower_bound = self.config["neuronexus_templates_params"]["zlim"][1] + 15
+            upper_bound = self.config["neuronexus_templates_params"]["zlim"][0] + self.config["neuronexus_templates_params"]["drift_zlim"][0] - 15
+            return (upper_bound + lower_bound) / 2
         elif probe == 'tetrode':
             return -10
         else:
@@ -197,6 +258,8 @@ class Simulator:
         ax.set_title(f"Cell drifts for {probe_name} recording {i+1}.")
         savepath = self.output_dir / f"{probe_name}_recording_{i+1}_cell_drifts.png"
         plt.savefig(savepath)
+        print(f"Saved cell drifts plot for {probe_name} recording {i+1}.")
+        self.bucket.blob(str(savepath)).upload_from_filename(str(savepath))
         print(f"Saved cell drifts plot for {probe_name} recording {i+1} to GCS.")
 
     def _make_session_drift_dicts(self, probe, cur_depth):
@@ -226,6 +289,8 @@ class Simulator:
         return inter_session_drift_dict
 
     def _make_fast_external_drift_dict(self, probe, cur_depth):
+        np.random.seed(abs(int(cur_depth)))
+        print(f"Set seed to {abs(int(cur_depth))}.")
         if probe == 'Neuronexus-32':
             duration = self.config["neuronexus_recordings_params"]["spiketrains"]["duration"]
         elif probe == 'tetrode':
@@ -241,6 +306,7 @@ class Simulator:
         return fast_normal_noise
 
     def _make_slow_external_drift_dict(self, probe, cur_depth):
+        np.random.seed(abs(int(cur_depth)))
         if probe == 'Neuronexus-32':
             duration = self.config["neuronexus_recordings_params"]["spiketrains"]["duration"]
         slow_walk_drift = self.config["base_signal_drift_dict"].copy()
@@ -266,7 +332,7 @@ def main():
     setup_logging(config_dict)
     logging.info("===== Starting simulation. =====")
     simulator = Simulator(config=config_dict)
-    for probe in ['Neuronexus-32']:#, 'tetrode']:
+    for probe in ['Neuronexus-32']:
         simulator.run_simulation(probe)
     logging.info("===== Simulation finished. =====")
 

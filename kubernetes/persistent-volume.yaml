@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: gcs-pv
+spec:
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteMany
+  storageClassName: "gcsfuse-storage-class"
+  csi:
+    driver: gcsfuse.csi.storage.gke.io
+    volumeHandle: neuron-tracker-simulation
+    volumeAttributes:
+      bucketName: neuron-tracker-simulation
+      gcsfuseLoggingSeverity: warning
+      mountOptions: implicit-dirs

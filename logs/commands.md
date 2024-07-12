@@ -89,7 +89,7 @@ get pods
 
 (copy the name of the pod)
 
-logs -f POD_NAME -c simulation-a1-l1
+kubectl logs -f POD_NAME -c simulation-a1-l1
 
 
 gcloud iam service-accounts get-iam-policy neuron-tracker-sim-sa@neuron-tracker-simulation.iam.gserviceaccount.com

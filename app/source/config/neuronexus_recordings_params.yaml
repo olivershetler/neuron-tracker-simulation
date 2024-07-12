@@ -8,8 +8,8 @@ spiketrains:
   # rates: [3,3,5] # individual spike trains rates
   # types: ['E', 'E', 'I'] # individual spike trains class (exc-inh)
   # alternative to rates - excitatory and inhibitory settings
-  n_exc: 7 # number of excitatory cells
-  n_inh: 3 # number of inhibitory cells
+  n_exc: 15 # number of excitatory cells
+  n_inh: 35 # number of inhibitory cells
   f_exc: 5 # average firing rate of excitatory cells in Hz
   f_inh: 15 # average firing rate of inhibitory cells in Hz
   st_exc: 1 # firing rate standard deviation of excitatory cells in Hz
@@ -19,7 +19,7 @@ spiketrains:
   process: poisson # process for spike train simulation (poisson-gamma)
   gamma_shape: 2 # gamma shape (for gamma process)
   t_start: 0 # start time in s
-  duration: 100 # duration in s
+  duration: 1800 # duration in s
 
 cell_types:
   # excitatory and inhibitory cell names (overwrite if using custom models)
@@ -28,13 +28,13 @@ cell_types:
 
 seeds:
   spiketrains: null # random seed for spiketrain generation
-  templates: null # random seed for template selection
+  templates: 42 # random seed for template selection
   convolution: null # random seed for jitter selection in convolution
   noise: null # random seed for noise
 
 templates:
   # recording generation parameters
-  min_dist: 12.5 # minimum distance between neurons
+  min_dist: 25 # minimum distance between neurons
   min_amp: 50 # minimum spike amplitude in uV
   max_amp: 300 # maximum spike amplitude in uV
   n_overlap_pairs: null # number of spatially overlapping templates
